@@ -1,0 +1,24 @@
+{
+  "name": "wilddog-video-quickstart",
+  "version": "1.0.0",
+  "description": "Wilddog Video SDK 快速入门",
+  "main": "https_channel_server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itolfh/wilddog-video-quickstart.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/itolfh/wilddog-video-quickstart/issues"
+  },
+  "homepage": "https://github.com/itolfh/wilddog-video-quickstart#readme",
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "https": "^1.0.0",
+    "path": "^0.12.7"
+  }
+}
