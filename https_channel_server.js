@@ -33,7 +33,7 @@ var server = https.createServer(options, function (request, response) {
     var url = request.url.split("?", 1)[0];
     var filePath = path.join(clientDir, url);
     if (filePath.indexOf(clientDir) != 0 || filePath == clientDir)
-        filePath = path.join(clientDir, "/quickstart.html");
+        filePath = path.join(clientDir, "/test.html");
 
     fs.stat(filePath, function (err, stats) {
         if (err || !stats.isFile()) {
