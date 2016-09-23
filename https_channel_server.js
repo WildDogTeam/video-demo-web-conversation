@@ -7,7 +7,7 @@ var options = {
 	cert:fs.readFileSync('./certificate.pem')
 };
 
-var port = process.env.PORT || 8080;
+var port = process.env.PORT || 3000;
 if (process.argv.length == 3) {
     port = process.argv[2];
 }
