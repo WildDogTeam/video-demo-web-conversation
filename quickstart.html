@@ -42,6 +42,31 @@
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.0.0/wilddog.js'></script>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.3.1/wilddog-video.js'></script>
     <script type="text/javascript">
+
+    //demo设计思路总览：
+    //分析、准备阶段：
+    //      从wilddog.Video的API来看，我们能够获取一个Conversation中的有哪些用户，但却无法获取Conversation之外有哪些用户（这些用户并不是仅包括尚未加入任何会议的用户，wilddog.Video支持一个用户可以同时加入多个会议），因此我们需要单独保存一个users 列表，用来保存在线的用户，以便与其他用户进行会话。注：使用野狗中转服务时，在交互路径下也存在conversations/conversationId/users节点，此节点与我们demo中的users节点并无关系，交互路径下的节点用于保障中转服务的正常使用，设计初衷并不是提供给用户使用，因此应尽量避免使用交互路径下的数据。
+    //demo设计阶段：
+    //      此demo计划使用野狗的中转服务模式来完成。主要出于以下两点考虑：1.可以大大降低上行带宽。2.中转服务模式提供了更多的功能，如直播功能等。（使用该模式需先在控制面板->实时视频通话->服务器中转中开启该模式）
+    //demo实现步骤：
+    //1.输入野狗的appId和在控制面板的服务器中转页面设置的交互路径，然后匿名登录。
+    //2.匿名登录后，将用户写在users节点下（非交互路径，修改交互路径下的数据极有可能影响正常功能的使用）。
+    //3.客户端监听users节点，用于获取当前在线用户，方便发送会话邀请。当前在线用户会出现在页面的‘可邀请在线用户列表中’。
+    //4.选择一个在线用户，发出邀请。
+    //5.对方拒绝邀请。
+    //6.对方接受邀请，双方先在users节点下将自己的UID删除。（demo以实现基本功能为初衷，因此暂不支持一个用户可以加入多个Conversation的情况。）
+    //7.在本方发出邀请之后，可以拿到Conversation对象，Conversation提供了监听用户加入和离开的事件，当有用户加入时：创建一个video标签用于播放其媒体流。当有用户离开时，可以根据participantId来删除对应的video
+    
+    //wilddog.video SDK使用步骤：
+    //1.通过wilddog.video()获取Video对象。注：页面中必须要引wilddog.js和wilddog-video.js
+    //2.Video.client()获取Client对象。wilddog.video的使用全部是依赖Client来完成。
+    //3.Client.init(),init()主要作用为连接野狗服务端，因此其他函数的调用必须在init()完成后来执行的。
+    //4.（1）主动邀请：
+    //          调用client.inviteToConversation()
+    //  （2）接受邀请：
+    //          调用client的invite事件来监听收到邀请事件，并拿到incomingInvite对象
+    //更多详细API请参考wilddog.video文档：https://itolfh.gitbooks.io/video/content/
+
     //获取所使用到的所有元素
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -245,7 +270,7 @@
         }
     }
 
-    //离开当期conversation
+    //离开当前conversation
     var disconnect = function() {
         if (currentConversation) {
             remoteStream.detach(remote);
