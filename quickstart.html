@@ -126,9 +126,9 @@
         };
 
         wilddog.initializeApp(config);
-        //定义wilddog.video交互路径
+        //定义wilddog.video交互路径，wilddogVideo可以改为其他自定义路径
         wilddogref = wilddog.sync().ref().child('wilddogVideo');
-        //定义quickstart使用的用户列表存储路径
+        //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
         usersref = wilddog.sync().ref().child('userList');
         //野狗匿名登录
         wilddog.auth().signInAnonymously().then((user) => {
@@ -173,7 +173,7 @@
                 });
             });
 
-            //监听在线用户列表
+            //监听在线用户列表，并展示除自己之外的用户
             usersref.child('users').on('child_added', (snap) => {
                 if (snap.key() != user.uid) {
                     var newUser = userModel.cloneNode(true);
@@ -183,7 +183,7 @@
                     userList.appendChild(newUser);
                 }
             });
-
+			//有用户离开，在 'user-list' 元素中取消该用户
             usersref.child('users').on('child_removed', (snap) => {
                 if (snap.key() != user.uid) {
                     var removeEl = document.getElementById(snap.key());
@@ -211,11 +211,12 @@
             //在线用户列表只保存也被邀请和可邀请他人的用户，因此接受邀请后即在用户列表中将自己删除，防止其他用户再邀请
             usersref.child('users/' + auth.uid).remove();
 
-            //监听新参与者加入conversation
+            //监听新参与者加入conversation事件
             conversation.on('participant_connected', (participant) => {
                 remoteStream = participant.stream;
                 participant.stream.attach(remoteEl);
             });
+			//监听参与者离开conversation事件
             conversation.on('participant_disconnected', (participant) => {
                 participant.stream.detach(remoteEl);
                 console.log('participant_disconnected');
