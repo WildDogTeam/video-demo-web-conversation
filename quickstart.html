@@ -40,7 +40,7 @@
         </div>
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.0.0/wilddog.js'></script>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.3.1/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.3.3/wilddog-video.js'></script>
     <script type="text/javascript">
     /*
      * demo设计思路总览：
@@ -125,7 +125,8 @@
         };
 
         wilddog.initializeApp(config);
-        wilddogref = wilddog.sync().ref();
+        wilddogref = wilddog.sync().ref().child('你的自定义路径');
+        usersref = wilddog.sync().ref().child('用户列表存储路径');
         //野狗匿名登录
         wilddog.auth().signInAnonymously().then((user) => {
             //获取本地媒体流，并绑定到页面
@@ -148,8 +149,8 @@
             auth = user;
 
             //SDK之外保存的一个在线用户列表，匿名成功之后写入列表
-            wilddogref.child('users/' + user.uid).set(true);
-            wilddogref.child('users/' + user.uid).onDisconnect().remove();
+            usersref.child('users/' + user.uid).set(true);
+            usersref.child('users/' + user.uid).onDisconnect().remove();
 
             //Client初始化操作，执行必须在匿名登录之后进行，client的其他函数必须在init成功后才可调用
             clientInstance.init({
@@ -170,7 +171,7 @@
             });
 
             //监听在线用户列表
-            wilddogref.child('users').on('child_added', (snap) => {
+            usersref.child('users').on('child_added', (snap) => {
                 if (snap.key() != user.uid) {
                     var newUser = userModel.cloneNode(true);
                     newUser.id = snap.key();
@@ -180,7 +181,7 @@
                 }
             });
 
-            wilddogref.child('users').on('child_removed', (snap) => {
+            usersref.child('users').on('child_removed', (snap) => {
                 if (snap.key() != user.uid) {
                     var removeEl = document.getElementById(snap.key());
                     userList.removeChild(removeEl);
@@ -205,7 +206,7 @@
             userDiv.hidden = true;
 
             //在线用户列表只保存也被邀请和可邀请他人的用户，因此接受邀请后即在用户列表中将自己删除，防止其他用户再邀请
-            wilddogref.child('users/' + auth.uid).remove();
+            usersref.child('users/' + auth.uid).remove();
 
             //监听新参与者加入conversation
             conversation.on('participant_connected', (participant) => {
@@ -219,7 +220,7 @@
                 currentConversation = null;
                 hangupEl.hidden = true;
                 userDiv.hidden = false;
-                wilddogref.child('users/' + auth.uid).set(true);
+                usersref.child('users/' + auth.uid).set(true);
             });
         });
     };
@@ -261,13 +262,13 @@
                     currentConversation = null;
                     hangupEl.hidden = true;
                     userDiv.hidden = false;
-                    wilddogref.child('users/' + auth.uid).set(true);
+                    usersref.child('users/' + auth.uid).set(true);
                 });
             });
 
             //监听被邀请者的接受邀请的事件
             outInvite.on('accepted', () => {
-                wilddogref.child('users/' + auth.uid).remove();
+                usersref.child('users/' + auth.uid).remove();
                 hangupEl.hidden = false;
                 userDiv.hidden = true;
             })
