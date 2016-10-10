@@ -40,7 +40,7 @@
         </div>
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.0.0/wilddog.js'></script>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.3.3/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.4.0/wilddog-video.js'></script>
     <script type="text/javascript">
     /*
      * demo设计思路总览：
@@ -77,7 +77,7 @@
      *          对象
      * 更多详细API请参考wilddog.video文档：
      *     https://itolfh.gitbooks.io/video/content/
-    */
+     */
     //获取所使用到的所有元素
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -134,13 +134,16 @@
         wilddog.auth().signInAnonymously().then((user) => {
             //获取本地媒体流，并绑定到页面
             videoInstance.createStream({
-                audio: true,
-                video: 'low'
-            }, function(err,wdStream) {
-		        console.log(err);
-                localStream = wdStream;
-                localStream.attach(localEl);
-            })
+                    audio: true,
+                    video: 'low'
+                })
+                .then(function(wdStream) {
+                    localStream = wdStream;
+                    localStream.attach(localEl);
+                })
+                .catch(function(err){
+                    console.error(err);
+                })
 
             //页面操作，无关sdk
             appidText.textContent = '你的Wilddog ID：' + user.uid;
@@ -157,21 +160,25 @@
 
             //Client初始化操作，执行必须在匿名登录之后进行，client的其他函数必须在init成功后才可调用
             clientInstance.init({
-                ref: wilddogref,
-                user: user
-            }, () => {
-                //监听收到的邀请
-                clientInstance.on('invite', (incomingInvite) => {
-                    currentInvite = incomingInvite;
-                    inviteEl.hidden = false;
-                    invitInfo.textContent = incomingInvite.from + '向你发出会话邀请'
-                    //监听邀请者的取消邀请事件
-                    incomingInvite.on('canceled', () => {
-                        currentInvite = null;
-                        inviteEl.hidden = true;
-                    })
+                    ref: wilddogref,
+                    user: user
+                })
+                .then(() => {
+                    //监听收到的邀请
+                    clientInstance.on('invite', (incomingInvite) => {
+                        currentInvite = incomingInvite;
+                        inviteEl.hidden = false;
+                        invitInfo.textContent = incomingInvite.from + '向你发出会话邀请'
+                            //监听邀请者的取消邀请事件
+                        incomingInvite.on('canceled', () => {
+                            currentInvite = null;
+                            inviteEl.hidden = true;
+                        })
+                    });
+                })
+                .catch((err) => {
+                    console.error(err);
                 });
-            });
 
             //监听在线用户列表，并展示除自己之外的用户
             usersref.child('users').on('child_added', (snap) => {
@@ -183,7 +190,7 @@
                     userList.appendChild(newUser);
                 }
             });
-			//有用户离开，在 'user-list' 元素中取消该用户
+            //有用户离开，在 'user-list' 元素中取消该用户
             usersref.child('users').on('child_removed', (snap) => {
                 if (snap.key() != user.uid) {
                     var removeEl = document.getElementById(snap.key());
@@ -198,35 +205,36 @@
 
     //接受当前收到的邀请
     var accept = function() {
-        currentInvite.accept(localStream).then((conversation) => {
-            console.log('accept');
+        currentInvite.accept(localStream)
+            .then((conversation) => {
+                console.log('accept');
 
-            inviteEl.hidden = true;
+                inviteEl.hidden = true;
 
-            currentConversation = conversation;
-            hangupEl.hidden = false;
+                currentConversation = conversation;
+                hangupEl.hidden = false;
 
-            userDiv.hidden = true;
+                userDiv.hidden = true;
 
-            //在线用户列表只保存也被邀请和可邀请他人的用户，因此接受邀请后即在用户列表中将自己删除，防止其他用户再邀请
-            usersref.child('users/' + auth.uid).remove();
+                //在线用户列表只保存也被邀请和可邀请他人的用户，因此接受邀请后即在用户列表中将自己删除，防止其他用户再邀请
+                usersref.child('users/' + auth.uid).remove();
 
-            //监听新参与者加入conversation事件
-            conversation.on('participant_connected', (participant) => {
-                remoteStream = participant.stream;
-                participant.stream.attach(remoteEl);
+                //监听新参与者加入conversation事件
+                conversation.on('participant_connected', (participant) => {
+                    remoteStream = participant.stream;
+                    participant.stream.attach(remoteEl);
+                });
+                //监听参与者离开conversation事件
+                conversation.on('participant_disconnected', (participant) => {
+                    participant.stream.detach(remoteEl);
+                    console.log('participant_disconnected');
+                    conversation.disconnect();
+                    currentConversation = null;
+                    hangupEl.hidden = true;
+                    userDiv.hidden = false;
+                    usersref.child('users/' + auth.uid).set(true);
+                });
             });
-			//监听参与者离开conversation事件
-            conversation.on('participant_disconnected', (participant) => {
-                participant.stream.detach(remoteEl);
-                console.log('participant_disconnected');
-                conversation.disconnect();
-                currentConversation = null;
-                hangupEl.hidden = true;
-                userDiv.hidden = false;
-                usersref.child('users/' + auth.uid).set(true);
-            });
-        });
     };
 
     //拒绝当前收到的邀请
@@ -295,7 +303,7 @@
             hangup.hidden = true;
             currentConversation = null;
             userDiv.hidden = false;
-            wilddogref.child('users/' + auth.uid).set(true);
+            usersref.child('users/' + auth.uid).set(true);
         }
     }
     </script>
