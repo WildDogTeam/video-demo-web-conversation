@@ -131,76 +131,77 @@
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
         usersref = wilddog.sync().ref().child('userList');
         //野狗匿名登录
-        wilddog.auth().signInAnonymously().then((user) => {
-            //获取本地媒体流，并绑定到页面
-            videoInstance.createStream({
-                    audio: true,
-                    video: 'low'
+        wilddog.auth().signInAnonymously()
+            .then((user) => {
+                //获取本地媒体流，并绑定到页面
+                videoInstance.createStream({
+                        audio: true,
+                        video: 'low'
+                    })
+                    .then(function(wdStream) {
+                        localStream = wdStream;
+                        localStream.attach(localEl);
+                    })
+                    .catch(function(err) {
+                        console.error(err);
+                    })
+
+                //页面操作，无关sdk
+                appidText.textContent = '你的Wilddog ID：' + user.uid;
+                loginDiv.hidden = true;
+                videoList.hidden = false;
+                userDiv.hidden = false;
+
+                loginBtn.disabled = true;
+                auth = user;
+
+                //SDK之外保存的一个在线用户列表，匿名成功之后写入列表
+                usersref.child('users/' + user.uid).set(true);
+                usersref.child('users/' + user.uid).onDisconnect().remove();
+
+                //监听在线用户列表，并展示除自己之外的用户
+                usersref.child('users').on('child_added', (snap) => {
+                    if (snap.key() != user.uid) {
+                        var newUser = userModel.cloneNode(true);
+                        newUser.id = snap.key();
+                        newUser.children[0].textContent = snap.key();
+                        newUser.hidden = false;
+                        userList.appendChild(newUser);
+                    }
+                });
+                //有用户离开，在 'user-list' 元素中取消该用户
+                usersref.child('users').on('child_removed', (snap) => {
+                    if (snap.key() != user.uid) {
+                        var removeEl = document.getElementById(snap.key());
+                        userList.removeChild(removeEl);
+                    }
                 })
-                .then(function(wdStream) {
-                    localStream = wdStream;
-                    localStream.attach(localEl);
-                })
-                .catch(function(err){
-                    console.error(err);
-                })
 
-            //页面操作，无关sdk
-            appidText.textContent = '你的Wilddog ID：' + user.uid;
-            loginDiv.hidden = true;
-            videoList.hidden = false;
-            userDiv.hidden = false;
-
-            loginBtn.disabled = true;
-            auth = user;
-
-            //SDK之外保存的一个在线用户列表，匿名成功之后写入列表
-            usersref.child('users/' + user.uid).set(true);
-            usersref.child('users/' + user.uid).onDisconnect().remove();
-
-            //Client初始化操作，执行必须在匿名登录之后进行，client的其他函数必须在init成功后才可调用
-            clientInstance.init({
+                //Client初始化操作，执行必须在匿名登录之后进行，client的其他函数必须在init成功后才可调用
+                return clientInstance.init({
                     ref: wilddogref,
                     user: user
                 })
-                .then(() => {
-                    //监听收到的邀请
-                    clientInstance.on('invite', (incomingInvite) => {
-                        currentInvite = incomingInvite;
-                        inviteEl.hidden = false;
-                        invitInfo.textContent = incomingInvite.from + '向你发出会话邀请'
-                            //监听邀请者的取消邀请事件
-                        incomingInvite.on('canceled', () => {
-                            currentInvite = null;
-                            inviteEl.hidden = true;
-                        })
-                    });
-                })
-                .catch((err) => {
-                    console.error(err);
-                });
-
-            //监听在线用户列表，并展示除自己之外的用户
-            usersref.child('users').on('child_added', (snap) => {
-                if (snap.key() != user.uid) {
-                    var newUser = userModel.cloneNode(true);
-                    newUser.id = snap.key();
-                    newUser.children[0].textContent = snap.key();
-                    newUser.hidden = false;
-                    userList.appendChild(newUser);
-                }
-            });
-            //有用户离开，在 'user-list' 元素中取消该用户
-            usersref.child('users').on('child_removed', (snap) => {
-                if (snap.key() != user.uid) {
-                    var removeEl = document.getElementById(snap.key());
-                    userList.removeChild(removeEl);
-                }
             })
-
-        }).catch(function(err) {
-            errTip.hidden = false;
-        });
+            .catch((err) => {
+                console.error(err);
+            })
+            .then(() => {
+                //监听收到的邀请
+                clientInstance.on('invite', (incomingInvite) => {
+                    currentInvite = incomingInvite;
+                    inviteEl.hidden = false;
+                    invitInfo.textContent = incomingInvite.from + '向你发出会话邀请'
+                        //监听邀请者的取消邀请事件
+                    incomingInvite.on('canceled', () => {
+                        currentInvite = null;
+                        inviteEl.hidden = true;
+                    })
+                });
+            })
+            .catch(function(err) {
+                errTip.hidden = false;
+            });
     }
 
     //接受当前收到的邀请
