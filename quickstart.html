@@ -20,7 +20,7 @@
     <div id="getAppid-div" style="text-align:center;margin-top:150px;">
         <input id="appid" onfocus='hiddenTip()' type="" style="width:250px;height:35px;" name="" placeholder='请输入应用 ID'>
         <button id="login" onclick="login()" style="height:35px;border: 1px solid;border-radius: 3px;cursor:pointer">匿名登录</button>
-        <i id="appid-tip" style="position:absolute;margin-top:40px;margin-left:-320px;font-size:15px;color:#eb3232;" hidden="">请检查appid是否正确并开启匿名登录功能！</i>
+        <i id="appid-tip" style="position:absolute;margin-top:40px;margin-left:-320px;font-size:15px;color:#eb3232;" hidden="">请检查appid是否正确并开启匿名登录功能和实时视频服务！</i>
     </div>
     <div id="videos" style="text-align:center;margin:0px auto;margin-top:80px;" hidden="">
         <video id="local" style="border:1px solid;width:480px;height:360px;" muted="" autoplay=""></video>
@@ -42,43 +42,6 @@
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.0.0/wilddog.js'></script>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.4.1/wilddog-video.js'></script>
     <script type="text/javascript">
-    /*
-     * demo设计思路总览：
-     * 分析、准备阶段：
-     *     从wilddog.Video的API来看，我们能够获取一个Conversation中的有哪些用户
-     *     ，但却无法获取Conversation之外有哪些用户（这些用户并不是仅包括尚未加
-     *     入任何会议的用户，wilddog.Video Web SDK 支持一个用户同时加入多个会议
-     *     ），因此我们需要单独保存一个users 列表，用来保存在线的用户，以便与其
-     *     他用户进行会话。
-     * demo设计阶段：
-     *     此demo计划使用野狗的一对一（p2p）模式来完成。
-     * demo实现步骤：
-     *     1.输入野狗的appId，然后匿名登录。
-     *     2.匿名登录后，将用户写在users节点下（非交互路径，因为修改交互路径的数
-     *     据极有可能影响正常功能的使用）。
-     *     3.客户端监听users节点，用于获取当前在线用户，方便发送会话邀请。当前在
-     *     线用户会出现在页面的‘可邀请在线用户列表中’。
-     *     4.选择一个在线用户，发出邀请。
-     *     5.对方拒绝邀请。
-     *     6.对方接受邀请，双方先在users节点下将自己的UID删除，避免收到其他邀请
-     *     7.在本方发出邀请之后，可以拿到Conversation对象，Conversation提供了监
-     *     听用户加入和离开的事件，当有用户加入时：创建一个video标签用于播放其媒
-     *     体流。当有用户离开时，可以根据participantId来删除对应的video
-     * wilddog.video SDK使用步骤：
-     *     1.通过wilddog.video()获取Video对象。
-     *     注：页面中必须要引wilddog.js和wilddog-video.js
-     *     2.Video.client()获取Client对象。发起和加入会话依赖Client来完成。
-     *     3.Client.init(),init()主要作用为连接野狗服务端，因此其他函数的调用必
-     *     须在init()完成后来执行的。
-     *     4.（1）主动邀请：
-     *          调用client.inviteToConversation()
-     *       （2）接受邀请：
-     *          调用client的invite事件来监听收到邀请事件，并拿到incomingInvite
-     *          对象
-     * 更多详细API请参考wilddog.video文档：
-     *     https://itolfh.gitbooks.io/video/content/
-     */
-    //获取所使用到的所有元素
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
     var appidEl = document.getElementById('appid');
@@ -93,29 +56,78 @@
     var invitInfo = document.getElementById('invitInfo');
     var inviteEl = document.getElementById('current-invite');
     var loginDiv = document.getElementById('getAppid-div');
-    //隐藏appId错误提示
-    var hiddenTip = function() {
-        errTip.hidden = true;
-    }
 
     var currentConversation = null;
     var wilddogref = null;
     var usersref = null;
     var auth = null;
-
     var remoteStream = null;
-
     var currentInvite = null;
-
     var outInvite = null;
+    var localStream = null;
+    //隐藏appId错误提示
+    var hiddenTip = function() {
+        errTip.hidden = true;
+    }
 
+    var onInviteCb = function(incomingInvite) {
+        currentInvite = incomingInvite;
+        inviteEl.hidden = false;
+        invitInfo.textContent = incomingInvite.from + '向你发出会话邀请'
+            //监听邀请者的取消邀请事件
+        incomingInvite.on('canceled', () => {
+            currentInvite = null;
+            inviteEl.hidden = true;
+        })
+    }
+
+    var onParticipantDisconnectedCb = function(participant){
+            participant.stream.detach(remoteEl);
+            console.log('participant_disconnected');
+            currentConversation.disconnect();
+            currentConversation = null;
+            hangupEl.hidden = true;
+            userDiv.hidden = false;
+            usersref.child('users/' + auth.uid).set(true);
+    }
+
+    var loginCb = function(user) {
+        //页面操作，无关sdk
+        appidText.textContent = '你的Wilddog ID：' + user.uid;
+        loginDiv.hidden = true;
+        videoList.hidden = false;
+        userDiv.hidden = false;
+        loginBtn.disabled = true;
+        auth = user;
+
+        //SDK之外保存的一个在线用户列表，匿名成功之后写入列表
+        usersref.child('users/' + user.uid).set(true);
+        usersref.child('users/' + user.uid).onDisconnect().remove();
+
+        //监听在线用户列表，并展示除自己之外的用户
+        usersref.child('users').on('child_added', (snap) => {
+            if (snap.key() != user.uid) {
+                var newUser = userModel.cloneNode(true);
+                newUser.id = snap.key();
+                newUser.children[0].textContent = snap.key();
+                newUser.hidden = false;
+                userList.appendChild(newUser);
+            }
+        });
+        //有用户离开，在 'user-list' 元素中取消该用户
+        usersref.child('users').on('child_removed', (snap) => {
+            if (snap.key() != user.uid) {
+                var removeEl = document.getElementById(snap.key());
+                userList.removeChild(removeEl);
+            }
+        })
+    }
+    </script>
+    <script type="text/javascript">
     //获取Video对象
     var videoInstance = wilddog.video();
     //获取Client对象
     var clientInstance = videoInstance.client();
-
-    var localStream = null;
-
     //登录
     //注：()=>{} ES6语法的匿名函数定义，其变化为：如果函数内部出现this，指代全局的this，而不再是函数的调用者
     var login = function() {
@@ -144,60 +156,18 @@
                     })
                     .catch(function(err) {
                         console.error(err);
-                    })
+                    });
 
-                //页面操作，无关sdk
-                appidText.textContent = '你的Wilddog ID：' + user.uid;
-                loginDiv.hidden = true;
-                videoList.hidden = false;
-                userDiv.hidden = false;
-
-                loginBtn.disabled = true;
-                auth = user;
-
-                //SDK之外保存的一个在线用户列表，匿名成功之后写入列表
-                usersref.child('users/' + user.uid).set(true);
-                usersref.child('users/' + user.uid).onDisconnect().remove();
-
-                //监听在线用户列表，并展示除自己之外的用户
-                usersref.child('users').on('child_added', (snap) => {
-                    if (snap.key() != user.uid) {
-                        var newUser = userModel.cloneNode(true);
-                        newUser.id = snap.key();
-                        newUser.children[0].textContent = snap.key();
-                        newUser.hidden = false;
-                        userList.appendChild(newUser);
-                    }
-                });
-                //有用户离开，在 'user-list' 元素中取消该用户
-                usersref.child('users').on('child_removed', (snap) => {
-                    if (snap.key() != user.uid) {
-                        var removeEl = document.getElementById(snap.key());
-                        userList.removeChild(removeEl);
-                    }
-                })
-
+                loginCb(user);
                 //Client初始化操作，执行必须在匿名登录之后进行，client的其他函数必须在init成功后才可调用
                 return clientInstance.init({
                     ref: wilddogref,
                     user: user
                 })
             })
-            .catch((err) => {
-                console.error(err);
-            })
             .then(() => {
                 //监听收到的邀请
-                clientInstance.on('invite', (incomingInvite) => {
-                    currentInvite = incomingInvite;
-                    inviteEl.hidden = false;
-                    invitInfo.textContent = incomingInvite.from + '向你发出会话邀请'
-                        //监听邀请者的取消邀请事件
-                    incomingInvite.on('canceled', () => {
-                        currentInvite = null;
-                        inviteEl.hidden = true;
-                    })
-                });
+                clientInstance.on('invite', onInviteCb);
             })
             .catch(function(err) {
                 errTip.hidden = false;
@@ -207,35 +177,7 @@
     //接受当前收到的邀请
     var accept = function() {
         currentInvite.accept(localStream)
-            .then((conversation) => {
-                console.log('accept');
-
-                inviteEl.hidden = true;
-
-                currentConversation = conversation;
-                hangupEl.hidden = false;
-
-                userDiv.hidden = true;
-
-                //在线用户列表只保存也被邀请和可邀请他人的用户，因此接受邀请后即在用户列表中将自己删除，防止其他用户再邀请
-                usersref.child('users/' + auth.uid).remove();
-
-                //监听新参与者加入conversation事件
-                conversation.on('participant_connected', (participant) => {
-                    remoteStream = participant.stream;
-                    participant.stream.attach(remoteEl);
-                });
-                //监听参与者离开conversation事件
-                conversation.on('participant_disconnected', (participant) => {
-                    participant.stream.detach(remoteEl);
-                    console.log('participant_disconnected');
-                    conversation.disconnect();
-                    currentConversation = null;
-                    hangupEl.hidden = true;
-                    userDiv.hidden = false;
-                    usersref.child('users/' + auth.uid).set(true);
-                });
-            });
+            .then(conversationStarted);
     };
 
     //拒绝当前收到的邀请
@@ -244,48 +186,32 @@
         inviteEl.hidden = true;
     }
 
+    var conversationStarted = function(conversation) {
+        //监听新参与者加入conversation事件
+        conversation.on('participant_connected', (participant) => {
+            remoteStream = participant.stream;
+            participant.stream.attach(remoteEl);
+        });
+        //监听参与者离开conversation事件
+        conversation.on('participant_disconnected', onParticipantDisconnectedCb);
+
+        inviteEl.hidden = true;
+        currentConversation = conversation;
+        hangupEl.hidden = false;
+        userDiv.hidden = true;
+        usersref.child('users/' + auth.uid).remove();
+    }
+
     //邀请其他用户加入会话  
     var invite = function(uid) {
-        console.log(uid);
-
         if (!currentConversation) {
             outInvite = clientInstance.inviteToConversation({
-                'mode': 'p2p',
-                'participantId': uid,
-                'localStream': localStream,
-            })
-
-            //发出邀请后可以在.then()中获取conversation
-            outInvite.then((conversation) => {
-
-                currentConversation = conversation;
-
-                //监听新参与者加入conversation
-                conversation.on('participant_connected', (participant) => {
-                    remoteStream = participant.stream;
-
-                    participant.stream.attach(remoteEl);
-                });
-
-                //监听参与者离开conversation
-                conversation.on('participant_disconnected', (participant) => {
-                    participant.stream.detach(remoteEl);
-                    //该示例为一对一示例，因此当对方断开后，本地也将执行Conversation的disconnect函数来主动断开conversation
-                    conversation.disconnect();
-                    currentConversation = null;
-                    hangupEl.hidden = true;
-                    userDiv.hidden = false;
-                    usersref.child('users/' + auth.uid).set(true);
-                });
-            });
-
-            //监听被邀请者的接受邀请的事件
-            outInvite.on('accepted', () => {
-                usersref.child('users/' + auth.uid).remove();
-                hangupEl.hidden = false;
-                userDiv.hidden = true;
-            })
-
+                    'mode': 'p2p',
+                    'participantId': uid,
+                    'localStream': localStream,
+                })
+                //发出邀请后可以在.then()中获取conversation
+            outInvite.then(conversationStarted);
             //监听被邀请者的拒绝邀请的事件
             outInvite.on('rejected', () => {
                 currentConversation = null;
