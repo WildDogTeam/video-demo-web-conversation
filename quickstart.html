@@ -18,7 +18,7 @@
     </div>
     <div style="text-align:center;font-size:50px;margin-top:50px;">wilddog video quickstart</div>
     <div id="getAppid-div" style="text-align:center;margin-top:150px;">
-        <input id="appid" onfocus='hiddenTip()' type="" style="width:250px;height:35px;" name="" placeholder='请输入应用 ID'>
+        <input id="appid" type="" style="width:250px;height:35px;" name="" placeholder='请输入应用 ID'>
         <button id="login" onclick="login()" style="height:35px;border: 1px solid;border-radius: 3px;cursor:pointer">匿名登录</button>
     </div>
     <div id="videos" style="text-align:center;margin:0px auto;margin-top:80px;" hidden="">
@@ -50,7 +50,6 @@
     var videoList = document.getElementById('videos');
     var hangupEl = document.getElementById('hangup');
     var loginBtn = document.getElementById('login');
-    var errTip = document.getElementById('appid-tip');
     var appidText = document.getElementById('appid-text');
     var invitInfo = document.getElementById('invitInfo');
     var inviteEl = document.getElementById('current-invite');
@@ -64,10 +63,6 @@
     var currentInvite = null;
     var outInvite = null;
     var localStream = null;
-    //隐藏appId错误提示
-    var hiddenTip = function() {
-        errTip.hidden = true;
-    }
 
     var onInviteCb = function(incomingInvite) {
         currentInvite = incomingInvite;
