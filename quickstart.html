@@ -20,7 +20,6 @@
     <div id="getAppid-div" style="text-align:center;margin-top:150px;">
         <input id="appid" onfocus='hiddenTip()' type="" style="width:250px;height:35px;" name="" placeholder='请输入应用 ID'>
         <button id="login" onclick="login()" style="height:35px;border: 1px solid;border-radius: 3px;cursor:pointer">匿名登录</button>
-        <i id="appid-tip" style="position:absolute;margin-top:40px;margin-left:-320px;font-size:15px;color:#eb3232;" hidden="">请检查appid是否正确并开启匿名登录功能和实时视频服务！</i>
     </div>
     <div id="videos" style="text-align:center;margin:0px auto;margin-top:80px;" hidden="">
         <video id="local" style="border:1px solid;width:480px;height:360px;" muted="" autoplay=""></video>
@@ -40,7 +39,7 @@
         </div>
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.0.0/wilddog.js'></script>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.4.1/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.4.2/wilddog-video.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -170,7 +169,7 @@
                 clientInstance.on('invite', onInviteCb);
             })
             .catch(function(err) {
-                errTip.hidden = false;
+                alert('请检查appid是否正确并开启匿名登录功能和实时视频服务！');
             });
     }
 
