@@ -135,7 +135,7 @@
         //定义wilddog.video交互路径，wilddogVideo可以改为其他自定义路径
         wilddogref = wilddog.sync().ref().child('wilddogVideo');
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
-        usersref = wilddog.sync().ref().child('userList');
+        usersref = wilddog.sync().ref();
         //野狗匿名登录
         wilddog.auth().signInAnonymously()
             .then((user) => {
