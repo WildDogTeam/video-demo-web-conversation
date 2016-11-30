@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 
 <head>
@@ -26,7 +27,7 @@
         <video id="remote" style="border:1px solid;width:480px;height:360px;margin-left:50px;" autoplay=""></video>
     </div>
     <div id="appid-text" style="margin-top:20px;"></div>
-    <div id="hangup" style="height:50px;;text-align:center;margin-top:20px;" hidden="">
+    <div id="hangup" style="height:50px;text-align:center;margin-top:20px;" hidden="">
         <button style="height:35px;border: 1px solid;border-radius: 3px;width:200px;cursor:pointer; " onclick="disconnect()">挂断</button>
     </div>
     <div id="users" style="margin:0 auto;margin-top:40px;width:300px;" hidden="">
@@ -38,8 +39,9 @@
             </div>
         </div>
     </div>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.0.0/wilddog.js'></script>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.4.2/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.3.8/wilddog.js'></script>
+    <!-- <script type="text/javascript" src='./lib/wilddog.js'></script> -->
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.5.0/wilddog-video.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -75,14 +77,14 @@
         })
     }
 
-    var onParticipantDisconnectedCb = function(participant){
-            participant.stream.detach(remoteEl);
-            console.log('participant_disconnected');
-            currentConversation.disconnect();
-            currentConversation = null;
-            hangupEl.hidden = true;
-            userDiv.hidden = false;
-            usersref.child('users/' + auth.uid).set(true);
+    var onParticipantDisconnectedCb = function(participant) {
+        participant.stream.detach(remoteEl);
+        console.log('participant_disconnected');
+        currentConversation.disconnect();
+        currentConversation = null;
+        hangupEl.hidden = true;
+        userDiv.hidden = false;
+        usersref.child('users/' + auth.uid).set(true);
     }
 
     var loginCb = function(user) {
@@ -119,9 +121,9 @@
     </script>
     <script type="text/javascript">
     //获取Video对象
-    var videoInstance = wilddog.video();
+    var videoInstance = null;
     //获取Client对象
-    var clientInstance = videoInstance.client();
+    var clientInstance = null;
     //登录
     //注：()=>{} ES6语法的匿名函数定义，其变化为：如果函数内部出现this，指代全局的this，而不再是函数的调用者
     var login = function() {
@@ -133,9 +135,11 @@
 
         wilddog.initializeApp(config);
         //定义wilddog.video交互路径，wilddogVideo可以改为其他自定义路径
-        wilddogref = wilddog.sync().ref().child('wilddogVideo');
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
         usersref = wilddog.sync().ref();
+        //获取Video对象
+        videoInstance = wilddog.video();
+        //获取Client对象
         //野狗匿名登录
         wilddog.auth().signInAnonymously()
             .then((user) => {
@@ -151,19 +155,15 @@
                     .catch(function(err) {
                         console.error(err);
                     });
-
                 loginCb(user);
-                //Client初始化操作，执行必须在匿名登录之后进行，client的其他函数必须在init成功后才可调用
-                return clientInstance.init({
-                    ref: wilddogref,
-                    user: user
-                })
             })
             .then(() => {
+                clientInstance = videoInstance.client();
                 //监听收到的邀请
                 clientInstance.on('invite', onInviteCb);
             })
             .catch(function(err) {
+                console.log(err);
                 alert('请检查appid是否正确并开启匿名登录功能和实时视频服务！');
             });
     }
@@ -183,8 +183,10 @@
     var conversationStarted = function(conversation) {
         //监听新参与者加入conversation事件
         conversation.on('participant_connected', (participant) => {
-            remoteStream = participant.stream;
-            participant.stream.attach(remoteEl);
+            participant.on('streamAdded', (stream) => {
+                remoteStream = stream;
+                remoteStream.attach(remoteEl);
+            })
         });
         //监听参与者离开conversation事件
         conversation.on('participant_disconnected', onParticipantDisconnectedCb);
@@ -196,13 +198,12 @@
         usersref.child('users/' + auth.uid).remove();
     }
 
-    //邀请其他用户加入会话  
+    //邀请其他用户加入会话
     var invite = function(uid) {
         if (!currentConversation) {
-            outInvite = clientInstance.inviteToConversation({
-                    'mode': 'p2p',
-                    'participantId': uid,
-                    'localStream': localStream,
+            outInvite = clientInstance.inviteToConversation(uid, {
+                    'userData': 'test',
+                    'stream': localStream
                 })
                 //发出邀请后可以在.then()中获取conversation
             outInvite.then(conversationStarted);
