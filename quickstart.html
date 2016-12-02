@@ -17,7 +17,7 @@
             拒绝
         </button>
     </div>
-    <div style="text-align:center;font-size:50px;margin-top:50px;">wilddog video quickstart</div>
+    <div style="text-align:center;font-size:50px;margin-top:50px;">video conversation demo</div>
     <div id="getAppid-div" style="text-align:center;margin-top:150px;">
         <input id="appid" type="" style="width:250px;height:35px;" name="" placeholder='请输入应用 ID'>
         <button id="login" onclick="login()" style="height:35px;border: 1px solid;border-radius: 3px;cursor:pointer">匿名登录</button>
@@ -71,7 +71,7 @@
         inviteEl.hidden = false;
         invitInfo.textContent = incomingInvite.from + '向你发出会话邀请'
             //监听邀请者的取消邀请事件
-        incomingInvite.on('canceled', () => {
+        incomingInvite.on('canceled', function() {
             currentInvite = null;
             inviteEl.hidden = true;
         })
@@ -101,7 +101,7 @@
         usersref.child('users/' + user.uid).onDisconnect().remove();
 
         //监听在线用户列表，并展示除自己之外的用户
-        usersref.child('users').on('child_added', (snap) => {
+        usersref.child('users').on('child_added', function(snap) {
             if (snap.key() != user.uid) {
                 var newUser = userModel.cloneNode(true);
                 newUser.id = snap.key();
@@ -111,7 +111,7 @@
             }
         });
         //有用户离开，在 'user-list' 元素中取消该用户
-        usersref.child('users').on('child_removed', (snap) => {
+        usersref.child('users').on('child_removed', function(snap) {
             if (snap.key() != user.uid) {
                 var removeEl = document.getElementById(snap.key());
                 userList.removeChild(removeEl);
@@ -142,7 +142,7 @@
         //获取Client对象
         //野狗匿名登录
         wilddog.auth().signInAnonymously()
-            .then((user) => {
+            .then(function(user) {
                 //获取本地媒体流，并绑定到页面
                 videoInstance.createStream({
                         audio: true,
@@ -157,7 +157,7 @@
                     });
                 loginCb(user);
             })
-            .then(() => {
+            .then(function() {
                 clientInstance = videoInstance.client();
                 //监听收到的邀请
                 clientInstance.on('invite', onInviteCb);
@@ -182,8 +182,8 @@
 
     var conversationStarted = function(conversation) {
         //监听新参与者加入conversation事件
-        conversation.on('participant_connected', (participant) => {
-            participant.on('streamAdded', (stream) => {
+        conversation.on('participant_connected', function(participant) {
+            participant.on('streamAdded', function(stream) {
                 remoteStream = stream;
                 remoteStream.attach(remoteEl);
             })
@@ -208,10 +208,13 @@
                 //发出邀请后可以在.then()中获取conversation
             outInvite.then(conversationStarted);
             //监听被邀请者的拒绝邀请的事件
-            outInvite.on('rejected', () => {
+            outInvite.on('rejected', function() {
                 currentConversation = null;
                 hangupEl.hidden = true;
                 userDiv.hidden = false;
+            });
+            outInvite.on('failed', function(err) {
+              console.error(err);
             })
         }
     }
