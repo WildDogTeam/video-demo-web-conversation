@@ -41,7 +41,7 @@
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.3.9/wilddog.js'></script>
     <!-- <script type="text/javascript" src='./lib/wilddog.js'></script> -->
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.5.2/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.5.4/wilddog-video.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -205,8 +205,8 @@
                     'userData': 'test',
                     'stream': localStream
                 })
-                //发出邀请后可以在.then()中获取conversation
-            outInvite.then(conversationStarted);
+            //发出邀请后可以在.then()中获取conversation
+            outInvite.then(conversationStarted).catch(function(err){console.error(err)});
             //监听被邀请者的拒绝邀请的事件
             outInvite.on('rejected', function() {
                 currentConversation = null;
