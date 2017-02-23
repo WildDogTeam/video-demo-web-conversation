@@ -36,6 +36,6 @@ node https_channel_server.js
 
 ## 8. 相关链接
 
-[完整文档](https://www.gitbook.com/book/itolfh/video)
+[完整文档](https://docs.wilddog.com/guide/video/core.html)
 
 
