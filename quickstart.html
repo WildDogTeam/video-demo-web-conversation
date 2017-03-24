@@ -162,7 +162,7 @@
                 //监听收到的邀请
                 clientInstance.on('invite', onInviteCb);
 		clientInstance.on('error',function(err){
-		    alert(err.message);
+		    alert('Client初始化失败，video功能未开启、服务已停用或认证失败。');
 		})
             })
             .catch(function(err) {
