@@ -161,9 +161,9 @@
                 clientInstance = videoInstance.client();
                 //监听收到的邀请
                 clientInstance.on('invite', onInviteCb);
-		clientInstance.on('error',function(err){
-		    alert('Client初始化失败，video功能未开启、服务已停用或认证失败。');
-		})
+                clientInstance.on('error',function(err){
+                    alert('Client初始化失败，video功能未开启、服务已停用或认证失败！请刷新页面重新进入！');
+                })
             })
             .catch(function(err) {
                 console.log(err);
