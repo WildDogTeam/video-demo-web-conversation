@@ -39,9 +39,9 @@
             </div>
         </div>
     </div>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.2/wilddog.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
     <!-- <script type="text/javascript" src='./lib/wilddog.js'></script> -->
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.5.17/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.5.18/wilddog-video.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -98,8 +98,11 @@
 
         //SDK之外保存的一个在线用户列表，匿名成功之后写入列表
         usersref.child('users/' + user.uid).set(true);
-        usersref.child('users/' + user.uid).onDisconnect().remove();
-
+        connectedRef.on('value',function (snap) {
+            if (snap.val()==true) {
+                usersref.child('users/' + user.uid).onDisconnect().remove();
+            }
+        })
         //监听在线用户列表，并展示除自己之外的用户
         usersref.child('users').on('child_added', function(snap) {
             if (snap.key() != user.uid) {
@@ -124,6 +127,8 @@
     var videoInstance = null;
     //获取Client对象
     var clientInstance = null;
+    //监听wilddog sync链接状态的节点
+    var connectedRef;
     //登录
     //注：()=>{} ES6语法的匿名函数定义，其变化为：如果函数内部出现this，指代全局的this，而不再是函数的调用者
     var login = function() {
@@ -137,6 +142,7 @@
         //定义wilddog.video交互路径，wilddogVideo可以改为其他自定义路径
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
         usersref = wilddog.sync().ref();
+        connectedRef = wilddog.sync().ref('/.info/connected')
         //获取Video对象
         videoInstance = wilddog.video();
         //获取Client对象
