@@ -152,7 +152,7 @@
                 //获取本地媒体流，并绑定到页面
                 videoInstance.createStream({
                         audio: true,
-                        video: 'low'
+                        video: false 
                     })
                     .then(function(wdStream) {
                         localStream = wdStream;
