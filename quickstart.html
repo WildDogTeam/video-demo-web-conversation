@@ -41,7 +41,7 @@
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
     <!-- <script type="text/javascript" src='./lib/wilddog.js'></script> -->
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.5.18/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.5.19/wilddog-video.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -152,7 +152,7 @@
                 //获取本地媒体流，并绑定到页面
                 videoInstance.createStream({
                         audio: true,
-                        video: false 
+                        video: 'low' 
                     })
                     .then(function(wdStream) {
                         localStream = wdStream;
