@@ -17,6 +17,14 @@
             拒绝
         </button>
     </div>
+    <div id="invite_busy" hidden="" style="z-index: 999; position:absolute;border: 1px solid;border-radius: 5px; width:320px;height:160px;left:50%;margin-left:-160px;background-color: white;margin-top: 200px;">
+        <div id="busyInfo" style="width:300px;height:60px;color:black;padding-top:40px;">
+            您邀请的用户正在通话中，请稍候再拨！
+        </div>
+        <button style="height:30px;border: 1px solid;border-radius:3px;width:100px;cursor:pointer;" onclick="javascript:document.getElementById('invite_busy').hidden = true">
+            确定
+        </button>
+    </div>
     <div style="text-align:center;font-size:50px;margin-top:50px;">video conversation demo</div>
     <div id="getAppid-div" style="text-align:center;margin-top:150px;">
         <input id="appid" type="" style="width:250px;height:35px;" name="" placeholder='请输入应用 ID'>
@@ -41,7 +49,7 @@
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
     <!-- <script type="text/javascript" src='./lib/wilddog.js'></script> -->
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/0.5.19/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/1.0.0/wilddog-video.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -56,6 +64,7 @@
     var invitInfo = document.getElementById('invitInfo');
     var inviteEl = document.getElementById('current-invite');
     var loginDiv = document.getElementById('getAppid-div');
+    var inviteBusyEl = document.getElementById('invite_busy');
 
     var currentConversation = null;
     var wilddogref = null;
@@ -78,13 +87,15 @@
     }
 
     var onParticipantDisconnectedCb = function(participant) {
-        participant.stream.detach(remoteEl);
-        console.log('participant_disconnected');
-        currentConversation.disconnect();
-        currentConversation = null;
-        hangupEl.hidden = true;
-        userDiv.hidden = false;
-        usersref.child('users/' + auth.uid).set(true);
+        if(participant.stream){
+            participant.stream.detach(remoteEl);
+            console.log('participant_disconnected');
+            currentConversation.disconnect();
+            currentConversation = null;
+            hangupEl.hidden = true;
+            userDiv.hidden = false;
+            usersref.child('users/' + auth.uid).set(true);
+        }
     }
 
     var loginCb = function(user) {
@@ -152,7 +163,7 @@
                 //获取本地媒体流，并绑定到页面
                 videoInstance.createStream({
                         audio: true,
-                        video: 'low' 
+                        video: 'low'
                     })
                     .then(function(wdStream) {
                         localStream = wdStream;
@@ -193,6 +204,10 @@
         //监听新参与者加入conversation事件
         conversation.on('participant_connected', function(participant) {
             participant.on('streamAdded', function(stream) {
+                inviteEl.hidden = true;
+                hangupEl.hidden = false;
+                userDiv.hidden = true;
+                usersref.child('users/' + auth.uid).remove();
                 remoteStream = stream;
                 remoteStream.attach(remoteEl);
             })
@@ -200,11 +215,7 @@
         //监听参与者离开conversation事件
         conversation.on('participant_disconnected', onParticipantDisconnectedCb);
 
-        inviteEl.hidden = true;
         currentConversation = conversation;
-        hangupEl.hidden = false;
-        userDiv.hidden = true;
-        usersref.child('users/' + auth.uid).remove();
     }
 
     //邀请其他用户加入会话
@@ -216,11 +227,19 @@
                 })
             //发出邀请后可以在.then()中获取conversation
             outInvite.then(conversationStarted).catch(function(err){console.error(err)});
+            //监听被邀请者通话中的事件
+            outInvite.on('busy', function () {
+                currentConversation = null;
+                hangupEl.hidden = true;
+                userDiv.hidden = false;
+                inviteBusyEl.hidden = false;
+            });
             //监听被邀请者的拒绝邀请的事件
             outInvite.on('rejected', function() {
                 currentConversation = null;
                 hangupEl.hidden = true;
                 userDiv.hidden = false;
+                usersref.child('users/' + auth.uid).set(true);
             });
             outInvite.on('failed', function(err) {
               console.error(err);
