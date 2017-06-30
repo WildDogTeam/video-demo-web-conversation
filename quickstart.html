@@ -49,7 +49,7 @@
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
     <!-- <script type="text/javascript" src='./lib/wilddog.js'></script> -->
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/1.0.0/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/1.0.1/wilddog-video.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -201,21 +201,23 @@
     }
 
     var conversationStarted = function(conversation) {
-        //监听新参与者加入conversation事件
-        conversation.on('participant_connected', function(participant) {
-            participant.on('streamAdded', function(stream) {
-                inviteEl.hidden = true;
-                hangupEl.hidden = false;
-                userDiv.hidden = true;
-                usersref.child('users/' + auth.uid).remove();
-                remoteStream = stream;
-                remoteStream.attach(remoteEl);
-            })
-        });
-        //监听参与者离开conversation事件
-        conversation.on('participant_disconnected', onParticipantDisconnectedCb);
+        if(currentConversation != conversation){
+            //监听新参与者加入conversation事件
+            conversation.on('participant_connected', function(participant) {
+                participant.on('streamAdded', function(stream) {
+                    inviteEl.hidden = true;
+                    hangupEl.hidden = false;
+                    userDiv.hidden = true;
+                    usersref.child('users/' + auth.uid).remove();
+                    remoteStream = stream;
+                    remoteStream.attach(remoteEl);
+                })
+            });
+            //监听参与者离开conversation事件
+            conversation.on('participant_disconnected', onParticipantDisconnectedCb);
 
-        currentConversation = conversation;
+            currentConversation = conversation;
+        }
     }
 
     //邀请其他用户加入会话
