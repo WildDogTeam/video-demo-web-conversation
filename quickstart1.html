@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Video测试页面</title>
+</head>
+
+<body style="background:#333;color:#fff;text-align: center;">
+    <div id="current-invite" hidden="" style="z-index: 999; position:absolute;border: 1px solid;border-radius: 5px; width:320px;height:160px;left:50%;margin-left:-160px;background-color: white;margin-top: 200px; ">
+        <div id="invitInfo" style="width:300px;height:60px;color:black;padding-top:40px;">
+        </div>
+        <button style="height:30px;border: 1px solid;border-radius:3px;width:100px;cursor:pointer;" onclick="accept()">
+            接受
+        </button>
+        <button style="height:30px;border: 1px solid;border-radius:3px;width:100px;margin-left:20px;cursor:pointer;" onclick="reject()">
+            拒绝
+        </button>
+    </div>
+    <div id="invite_busy" hidden="" style="z-index: 999; position:absolute;border: 1px solid;border-radius: 5px; width:320px;height:160px;left:50%;margin-left:-160px;background-color: white;margin-top: 200px;">
+        <div id="busyInfo" style="width:300px;height:60px;color:black;padding-top:40px;">
+            您邀请的用户正在通话中，请稍候再拨！
+        </div>
+        <button style="height:30px;border: 1px solid;border-radius:3px;width:100px;cursor:pointer;" onclick="javascript:document.getElementById('invite_busy').hidden = true">
+            确定
+        </button>
+    </div>
+    <div style="text-align:center;font-size:50px;margin-top:50px;">wilddog video quickstart</div>
+    <div id="getAppid-div" style="text-align:center;margin-top:150px;">
+        <input id="appid" type="" style="width:250px;height:35px;" name="" placeholder='请输入应用 ID'>
+        <button id="login" onclick="login()" style="height:35px;border: 1px solid;border-radius: 3px;cursor:pointer">匿名登录</button>
+    </div>
+    <div id="videos" style="text-align:center;margin:0px auto;margin-top:80px;" hidden="">
+        <video id="local" style="border:1px solid;width:480px;height:360px;" muted="" autoplay=""></video>
+        <video id="remote" style="border:1px solid;width:480px;height:360px;margin-left:50px;" autoplay=""></video>
+    </div>
+    <div id="appid-text" style="margin-top:20px;"></div>
+    <div id="hangup" style="height:50px;text-align:center;margin-top:20px;" hidden="">
+        <button style="height:35px;border: 1px solid;border-radius: 3px;width:200px;cursor:pointer; " onclick="disconnect()">挂断</button>
+    </div>
+    <div id="user-defined" style="margin: 0 auto;margin-top: 20px;text-align: center" hidden="">
+        <input id="serverIP" style="border: 1px solid;width:250px;height: 35px;" placeholder="请输入stun或turn服务器IP">
+        <!--<div>
+            <input id="host" type="checkbox" name="type"/>host
+            <input id="srflx" type="checkbox" name="type"/>srflx
+            <input id="relay" type="checkbox" name="type"/>relay
+        </div>-->
+        <input id="iceCandidateType" style="border: 1px solid;width: 250px;height: 35px;" placeholder="不发送的type,以';'分隔 如host;relay;srflx">
+    </div>
+    <div id="users" style="margin:0 auto;margin-top:40px;width:300px;" hidden="">
+        <div style="margin:0 auto;text-align:center;font-size:20px;margin-bottom:30px;">可邀请的在线用户列表</div>
+        <div id="user-list" style="border:1px solid;float:left;width:100%;min-height:200px;">
+            <div id="user-model" style="background-color:white; color: black; width:280px;height:30px;border:1px solid;margin:10px;float:left;" hidden="">
+                <span class="remoteuid"></span>
+                <button style="margin-top: 3px;border: 1px solid;border-radius: 3px;cursor:pointer " onclick="invite(this.parentElement.id,document.getElementById('serverIP').value,document.getElementById('iceCandidateType').value)">邀请</button>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.2/wilddog.js'></script>
+    <!-- <script type="text/javascript" src='./lib/wilddog.js'></script> -->
+    <script type="text/javascript" src='./wilddog-video.js'></script>
+    <script type="text/javascript">
+        // alert(navigator.userAgent);
+        var localEl = document.getElementById('local');
+        var remoteEl = document.getElementById('remote');
+        var appidEl = document.getElementById('appid');
+        var userModel = document.getElementById('user-model');
+        var userDiv = document.getElementById('users');
+        var userList = document.getElementById('user-list');
+        var videoList = document.getElementById('videos');
+        var hangupEl = document.getElementById('hangup');
+        var loginBtn = document.getElementById('login');
+        var appidText = document.getElementById('appid-text');
+        var invitInfo = document.getElementById('invitInfo');
+        var inviteEl = document.getElementById('current-invite');
+        var loginDiv = document.getElementById('getAppid-div');
+        var inviteBusyEl = document.getElementById('invite_busy');
+        var userDefined = document.getElementById('user-defined');
+        //var iceType = document.getElementsByName('type');
+        /*var s = '';
+        for(var i=0;i<iceType.length;i++){
+            if(iceType[i].checked){
+                s += iceType[i].value + ';'
+            }
+        }*/
+
+        var currentConversation = null;
+        var wilddogref = null;
+        var usersref = null;
+        var auth = null;
+        var remoteStream = null;
+        var currentInvite = null;
+        var outInvite = null;
+        var localStream = null;
+
+        var onInviteCb = function(incomingInvite) {
+            currentInvite = incomingInvite;
+            inviteEl.hidden = false;
+            invitInfo.textContent = incomingInvite.from + '向你发出会话邀请';
+            //监听邀请者的取消邀请事件
+            incomingInvite.on('canceled', function() {
+                currentInvite = null;
+                inviteEl.hidden = true;
+            })
+        }
+
+        var onParticipantDisconnectedCb = function(participant) {
+            if(participant.stream){
+                participant.stream.detach(remoteEl);
+                console.log('participant_disconnected');
+                currentConversation.disconnect();
+                currentConversation = null;
+                hangupEl.hidden = true;
+                userDiv.hidden = false;
+                usersref.child('users/' + auth.uid).set(true);
+                userDefined.hidden =false;
+            }
+        }
+
+        var loginCb = function(user) {
+            //页面操作，无关sdk
+            appidText.textContent = '你的Wilddog ID：' + user.uid;
+            loginDiv.hidden = true;
+            videoList.hidden = false;
+            userDiv.hidden = false;
+            loginBtn.disabled = true;
+            userDefined.hidden =false;
+
+            auth = user;
+
+            //SDK之外保存的一个在线用户列表，匿名成功之后写入列表
+            usersref.child('users/' + user.uid).set(true);
+            usersref.child('users/' + user.uid).onDisconnect().remove();
+
+            //监听在线用户列表，并展示除自己之外的用户
+            usersref.child('users').on('child_added', function(snap) {
+                if (snap.key() != user.uid) {
+                    var newUser = userModel.cloneNode(true);
+                    newUser.id = snap.key();
+                    newUser.children[0].textContent = snap.key();
+                    newUser.hidden = false;
+                    userList.appendChild(newUser);
+                }
+            });
+            //有用户离开，在 'user-list' 元素中取消该用户
+            usersref.child('users').on('child_removed', function(snap) {
+                if (snap.key() != user.uid) {
+                    var removeEl = document.getElementById(snap.key());
+                    userList.removeChild(removeEl);
+                }
+            })
+        }
+    </script>
+    <script type="text/javascript">
+        //获取Video对象
+        var videoInstance = null;
+        //获取Client对象
+        var clientInstance = null;
+        //登录
+        //注：()=>{} ES6语法的匿名函数定义，其变化为：如果函数内部出现this，指代全局的this，而不再是函数的调用者
+        var login = function() {
+            //初始化野狗
+            var config = {
+                authDomain: appidEl.value + '.wilddog.com',
+                syncURL: "https://" + appid.value + ".wilddogio.com"
+            };
+
+            wilddog.initializeApp(config);
+            //定义wilddog.video交互路径，wilddogVideo可以改为其他自定义路径
+            //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
+            usersref = wilddog.sync().ref();
+            //获取Video对象
+            videoInstance = wilddog.video();
+            //获取Client对象
+            //野狗匿名登录
+            wilddog.auth().signInAnonymously().then(function(user) {
+                //获取本地媒体流，并绑定到页面
+                videoInstance.createStream({
+                    audio: true,
+                    video: 'low'
+                }).then(function(wdStream) {
+                    localStream = wdStream;
+                    localStream.attach(localEl);
+                }).catch(function(err) {
+                    console.error(err);
+                });
+                loginCb(user);
+            }).then(function() {
+                clientInstance = videoInstance.client();
+                //监听收到的邀请
+                clientInstance.on('invite', onInviteCb);
+            }).catch(function(err) {
+                console.log(err);
+                alert('请检查appid是否正确并开启匿名登录功能和实时视频服务！');
+            });
+        }
+
+        //接受当前收到的邀请
+        var accept = function() {
+            currentInvite.accept(localStream,document.getElementById('serverIP').value,document.getElementById('iceCandidateType').value).then(conversationStarted);
+        };
+
+        //拒绝当前收到的邀请
+        var reject = function() {
+            currentInvite.reject();
+            inviteEl.hidden = true;
+        }
+
+        var conversationStarted = function(conversation) {
+            if(currentConversation != conversation){
+                //监听新参与者加入conversation事件
+                conversation.on('participant_connected', function(participant) {
+                    participant.on('streamAdded', function(stream) {
+                        inviteEl.hidden = true;
+                        hangupEl.hidden = false;
+                        userDiv.hidden = true;
+                        userDefined.hidden =true;
+                        usersref.child('users/' + auth.uid).remove();
+                        remoteStream = stream;
+                        remoteStream.attach(remoteEl);
+                    });
+                    participant.on('disconnected', function(err) {
+                        console.log('**********************peer disconnected!')
+                    })
+                });
+                //监听参与者离开conversation事件
+                conversation.on('participant_disconnected', onParticipantDisconnectedCb);
+
+                conversation.on('local_states', function(statistics) {
+                    console.log('local_states', statistics);
+                })
+                conversation.on('remote_states', function(statistics) {
+                    console.log('remote_states', statistics);
+                })
+                currentConversation = conversation;
+            }
+        }
+
+        //邀请其他用户加入会话
+        var invite = function(uid,servers,type) {
+            if (!currentConversation) {
+                outInvite = clientInstance.inviteToConversation(uid,servers,type, {
+                    'userData': 'test',
+                    'stream': localStream
+                })
+                //发出邀请后可以在.then()中获取conversation
+                outInvite.then(conversationStarted);
+                //监听被邀请者通话中的事件
+                outInvite.on('busy', function () {
+                    currentConversation = null;
+                    hangupEl.hidden = true;
+                    userDiv.hidden = false;
+                    inviteBusyEl.hidden = false;
+                });
+                //监听被邀请者的拒绝邀请的事件
+                outInvite.on('rejected', function() {
+                    currentConversation = null;
+                    hangupEl.hidden = true;
+                    userDiv.hidden = false;
+                    usersref.child('users/' + auth.uid).set(true);
+                });
+                outInvite.on('failed', function(err) {
+                    console.error(err);
+                })
+            }
+        }
+
+        //离开当前conversation
+        var disconnect = function() {
+            if (currentConversation) {
+                remoteStream.detach(remoteEl);
+                //Conversation提供了disconnect函数用于主动离开conversation
+                currentConversation.disconnect();
+                hangup.hidden = true;
+                currentConversation = null;
+                userDiv.hidden = false;
+                usersref.child('users/' + auth.uid).set(true);
+                userDefined.hidden =false;
+            }
+        }
+    </script>
+</body>
+
+</html>
