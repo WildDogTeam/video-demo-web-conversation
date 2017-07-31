@@ -27,7 +27,8 @@
     </div>
     <div style="text-align:center;font-size:50px;margin-top:50px;">video conversation demo</div>
     <div id="getAppid-div" style="text-align:center;margin-top:150px;">
-        <input id="appid" type="" style="width:250px;height:35px;" name="" placeholder='请输入应用 ID'>
+        <input id="videoAppid" type="" style="width:250px;height:35px;" name="" placeholder='请输入video appID'>
+        <input id="syncAppid" type="" style="width:250px;height:35px;" name="" placeholder='请输入sync appID'>
         <button id="login" onclick="login()" style="height:35px;border: 1px solid;border-radius: 3px;cursor:pointer">匿名登录</button>
     </div>
     <div id="videos" style="text-align:center;margin:0px auto;margin-top:80px;" hidden="">
@@ -53,7 +54,8 @@
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
-    var appidEl = document.getElementById('appid');
+    var videoAppidEl = document.getElementById('videoAppid');
+    var syncAppidEl = document.getElementById('syncAppid');
     var userModel = document.getElementById('user-model');
     var userDiv = document.getElementById('users');
     var userList = document.getElementById('user-list');
@@ -143,22 +145,32 @@
     //登录
     //注：()=>{} ES6语法的匿名函数定义，其变化为：如果函数内部出现this，指代全局的this，而不再是函数的调用者
     var login = function() {
-        //初始化野狗
-        var config = {
-            authDomain: appidEl.value + '.wilddog.com',
-            syncURL: "https://" + appid.value + ".wilddogio.com"
+
+        //如在使用Video SDK同时使用Sync SDK需要同时初始化Wilddog Video和Wilddog Sync
+        //初始化Wilddog sync
+        var syncConfig = {
+            authDomain: syncAppidEl.value + '.wilddog.com',
+            syncURL: "https://" + syncAppidEl.value + ".wilddogio.com"
         };
 
-        wilddog.initializeApp(config);
+        var syncApp = wilddog.initializeApp(syncConfig, 'syncApp');
+
+        //初始化野狗
+        var config = {
+            authDomain: videoAppidEl.value + '.wilddog.com',
+            syncURL: "https://" + videoAppid.value + ".wilddogio.com"
+        };
+
+        var videoApp = wilddog.initializeApp(config, 'videoApp');
         //定义wilddog.video交互路径，wilddogVideo可以改为其他自定义路径
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
-        usersref = wilddog.sync().ref();
-        connectedRef = wilddog.sync().ref('/.info/connected')
+        usersref = syncApp.sync().ref();
+        connectedRef = syncApp.sync().ref('/.info/connected');
         //获取Video对象
-        videoInstance = wilddog.video();
+        videoInstance = videoApp.video();
         //获取Client对象
-        //野狗匿名登录
-        wilddog.auth().signInAnonymously()
+        //野狗匿名登录 推荐使用非匿名登录方式
+        videoApp.auth().signInAnonymously()
             .then(function(user) {
                 //获取本地媒体流，并绑定到页面
                 videoInstance.createStream({
