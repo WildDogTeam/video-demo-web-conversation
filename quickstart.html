@@ -27,6 +27,7 @@
     </div>
     <div style="text-align:center;font-size:50px;margin-top:50px;">video conversation demo</div>
     <div id="getAppid-div" style="text-align:center;margin-top:150px;">
+        <input id="syncAppid" type="" style="width:250px;height:35px;" name="" placeholder='请输入sync appID'>
         <input id="videoAppid" type="" style="width:250px;height:35px;" name="" placeholder='请输入video appID'>
         <button id="login" onclick="login()" style="height:35px;border: 1px solid;border-radius: 3px;cursor:pointer">匿名登录</button>
     </div>
@@ -143,17 +144,20 @@
     var login = function() {
         //初始化野狗
         var config = {
-            authDomain: videoAppidEl.value + '.wilddog.com',
-            syncURL: "https://" + videoAppidEl.value + ".wilddogio.com"
+            authDomain: videoAppidEl.value + '.wilddog.com'
         };
-        wilddog.initializeApp(config);
+        var videoApp = wilddog.initializeApp(config,'videoApp');
+        var syncConfig = {
+            syncURL: "https://" + syncAppidEl.value + ".wilddogio.com"
+        };
+        var syncApp = wilddog.initializeApp(syncConfig,'syncApp');
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
-        usersref = wilddog.sync().ref();
-        connectedRef = wilddog.sync().ref('/.info/connected');
+        usersref = syncApp.sync().ref();
+        connectedRef = syncApp.sync().ref('/.info/connected');
         //获取WilddogVideo对象
         videoInstance = wilddogVideo.getInstance();
         //野狗匿名登录 推荐使用非匿名登录方式
-        wilddog.auth().signInAnonymously()
+        videoApp.auth().signInAnonymously()
             .then(function(user) {
                 //初始化WilddogVideo对象
                 videoInstance.initialize(videoAppidEl.value,user.getToken());
