@@ -32,8 +32,8 @@
         <button id="login" onclick="login()" style="height:35px;border: 1px solid;border-radius: 3px;cursor:pointer">匿名登录</button>
     </div>
     <div id="videos" style="text-align:center;margin:0px auto;margin-top:80px;" hidden="">
-        <video id="local" style="border:1px solid;width:480px;height:360px;" muted="" autoplay=""></video>
-        <video id="remote" style="border:1px solid;width:480px;height:360px;margin-left:50px;" autoplay=""></video>
+        <video id="local" style="border:1px solid;width:480px;height:360px;" muted="" autoplay="" controls></video>
+        <video id="remote" style="border:1px solid;width:480px;height:360px;margin-left:50px;" autoplay="" controls></video>
     </div>
     <div id="appid-text" style="margin-top:20px;"></div>
     <div id="hangup" style="height:50px;text-align:center;margin-top:20px;" hidden="">
@@ -50,7 +50,7 @@
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
     <!--<script type="text/javascript" src='./wilddog-video.js'></script> -->
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.0.0/wilddog-video.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.2.0/wilddog-video-call.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -154,15 +154,16 @@
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
         usersref = syncApp.sync().ref();
         connectedRef = syncApp.sync().ref('/.info/connected');
-        //获取WilddogVideo对象
-        videoInstance = wilddogVideo.getInstance();
+
         //野狗匿名登录 推荐使用非匿名登录方式
         videoApp.auth().signInAnonymously()
             .then(function(user) {
-                //初始化WilddogVideo对象
-                videoInstance.initialize(videoAppidEl.value,user.getToken());
+                //初始化WilddogVideoCall SDK
+                wilddogVideo.initialize({'appId':videoAppidEl.value,'token':user.getToken()});
+                //获取 WilddogVideoCall 对象
+                videoInstance = wilddogVideo.call();
                 //获取本地媒体流，并绑定到页面
-                videoInstance.createLocalStream({
+                wilddogVideo.createLocalStream({
                         captureVideo: true,
                         captureAudio: true,
                         dimension: '480p',
