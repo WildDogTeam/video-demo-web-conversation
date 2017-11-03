@@ -49,8 +49,8 @@
         </div>
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
-    <!--<script type="text/javascript" src='./wilddog-video.js'></script> -->
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.2.2/wilddog-video-call.js'></script>
+    <!--<script type="text/javascript" src='./wilddog-video-call.js'></script>-->
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.2.3/wilddog-video-call.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -220,6 +220,9 @@
         });
         conversation.on('remote_stats', function(statistics) {
             console.log('remote_stats', statistics);
+        });
+        conversation.on('error', function (error) {
+            console.log(error);
         });
         currentConversation = conversation;
     };
