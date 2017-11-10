@@ -25,6 +25,14 @@
             确定
         </button>
     </div>
+    <div id="timeout_busy" hidden="" style="z-index: 999; position:absolute;border: 1px solid;border-radius: 5px; width:320px;height:160px;left:50%;margin-left:-160px;background-color: white;margin-top: 200px;">
+        <div id="timeoutInfo" style="width:300px;height:60px;color:black;padding-top:40px;">
+            请稍候再拨！
+        </div>
+        <button style="height:30px;border: 1px solid;border-radius:3px;width:100px;cursor:pointer;" onclick="javascript:document.getElementById('timeout_busy').hidden = true">
+            确定
+        </button>
+    </div>
     <div style="text-align:center;font-size:50px;margin-top:50px;">video conversation demo</div>
     <div id="getAppid-div" style="text-align:center;margin-top:150px;">
         <input id="videoAppid" type="" style="width:250px;height:35px;" name="" placeholder='请输入video appID'>
@@ -50,7 +58,7 @@
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
     <script type="text/javascript" src='./wilddog-video-call.js'></script>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.2.3/wilddog-video-call.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.3.0/wilddog-video-call.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -67,6 +75,7 @@
     var inviteEl = document.getElementById('current-invite');
     var loginDiv = document.getElementById('getAppid-div');
     var inviteBusyEl = document.getElementById('invite_busy');
+    var inviteTimeoutEl = document.getElementById('timeout_busy');
 
     var currentConversation = null;
     var usersref = null;
@@ -94,6 +103,10 @@
 
             }
         });
+        conversation.on('closed',function () {
+            currentInvite = null;
+            inviteEl.hidden = true;
+        })
     };
 
     var onParticipantDisconnectedCb = function() {
@@ -224,15 +237,7 @@
         conversation.on('error', function (error) {
             console.log(error);
         });
-        currentConversation = conversation;
-    };
-
-    //邀请其他用户加入会话
-    var invite = function(uid) {
-        currentConversation = videoInstance.call(uid,localStream,'test');
-        conversationStarted(currentConversation);
-        //监听被邀请者的事件
-        currentConversation.on('response',function (callstatus) {
+        conversation.on('response',function (callstatus) {
             switch (callstatus){
                 case 'REJECT':
                     currentConversation = null;
@@ -245,9 +250,23 @@
                     userDiv.hidden = false;
                     inviteBusyEl.hidden = false;
                     break;
+                case 'TIMEOUT':
+                    currentConversation = null;
+                    hangupEl.hidden = true;
+                    userDiv.hidden = false;
+                    inviteTimeoutEl.hidden = false;
+                    break;
 
             }
         });
+        currentConversation = conversation;
+    };
+
+    //邀请其他用户加入会话
+    var invite = function(uid) {
+        currentConversation = videoInstance.call(uid,localStream,'test');
+        conversationStarted(currentConversation);
+        //监听被邀请者的事件
     };
 
     //离开当前conversation
