@@ -57,7 +57,7 @@
         </div>
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.3.2/wilddog-video-call.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.3.3/wilddog-video-call.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -77,34 +77,25 @@
     var inviteTimeoutEl = document.getElementById('timeout_busy');
 
     var currentConversation = null;
+    var incomingConversation = null;
     var usersref = null;
     var auth = null;
     var remoteStream = null;
-    var currentInvite = null;
-    var outInvite = null;
     var localStream = null;
+    var status = 'new'; //判断当前会话状态
 
     var onInviteCb = function(conversation) {
         incomingConversation = conversation;
         inviteEl.hidden = false;
         invitInfo.textContent = conversation.remoteUid + '向你发出会话邀请';
         //监听被邀请者的事件
-        conversation.on('response',function (callstatus) {
-            switch (callstatus){
-                case 'TIMEOUT':
-                    currentInvite = null;
-                    inviteEl.hidden = true;
-                    break;
-                case 'REJECTED':
-                    currentInvite = null;
-                    inviteEl.hidden = true;
-                    break;
-
+        // 长时间没有接受主叫方邀请 触发on('error')事件，此时会话没有建立成功,status = 'new';
+        conversation.on('error',function (error) {
+            if(status == 'new'){
+                console.log('存在未处理的请求，主叫方id为：' + conversation.remoteUid);
+                console.log(error);
+                inviteEl.hidden = true;
             }
-        });
-        conversation.on('closed',function () {
-            currentInvite = null;
-            inviteEl.hidden = true;
         })
     };
 
@@ -118,7 +109,7 @@
             userDiv.hidden = false;
             usersref.child('users/' + auth.uid).set(true);
         }
-    }
+    };
 
     var loginCb = function(user) {
         //页面操作，无关sdk
@@ -149,26 +140,20 @@
     }
     </script>
     <script type="text/javascript">
-    //监听wilddog sync链接状态的节点
-    var connectedRef;
     //登录
     //注：()=>{} ES6语法的匿名函数定义，其变化为：如果函数内部出现this，指代全局的this，而不再是函数的调用者
     var login = function() {
         //初始化野狗
         var config = {
-            authDomain: videoAppidEl.value + '.wilddog.com'
-        };
-        var videoApp = wilddog.initializeApp(config,'videoApp');
-        var syncConfig = {
+            authDomain: videoAppidEl.value + '.wilddog.com',
             syncURL: "https://" + syncAppidEl.value + ".wilddogio.com"
         };
-        var syncApp = wilddog.initializeApp(syncConfig,'syncApp');
+        wilddog.initializeApp(config);
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
-        usersref = syncApp.sync().ref();
-        connectedRef = syncApp.sync().ref('/.info/connected');
+        usersref = wilddog.sync().ref();
 
         //野狗匿名登录 推荐使用非匿名登录方式
-        videoApp.auth().signInAnonymously()
+        wilddog.auth().signInAnonymously()
             .then(function(user) {
                 //初始化WilddogVideoCall SDK
                 wilddogVideo.initialize({'appId':videoAppidEl.value,'token':user.getToken()});
@@ -215,6 +200,8 @@
     };
 
     var conversationStarted = function(conversation) {
+        //开始建立conversation后 status = 'accept'
+        status = 'accept';
         //监听新参与者加入conversation事件
         conversation.on('stream_received', function(stream) {
             inviteEl.hidden = true;
@@ -234,28 +221,47 @@
             console.log('remote_stats', statistics);
         });
         conversation.on('error', function (error) {
-            console.log(error);
+            inviteEl.hidden = true;
+            switch (error.code){
+                case 41004:
+                    console.log('建立视频通话过程中，由于peerConnection建立失败导致的错误');
+                    console.log(error);
+                    break;
+                case 41007:
+                    console.log('建立完视频通话后，由于网络或其他原因导致的异常中断');
+                    console.log(error);
+                    hangupEl.hidden = true;
+                    userDiv.hidden = false;
+                    remoteStream.detach(remoteEl);
+                    break;
+            }
         });
         conversation.on('response',function (callstatus) {
             switch (callstatus){
-                case 'REJECT':
+                case 'ACCEPTED':
+                    console.log('您邀请的用户已接受邀请！');
+                    hangupEl.hidden = true;
+                    userDiv.hidden = false;
+                    break;
+                case 'REJECTED':
+                    console.log('您邀请的用户已拒绝邀请，请重新邀请！');
                     currentConversation = null;
                     hangupEl.hidden = true;
                     userDiv.hidden = false;
                     break;
                 case 'BUSY':
+                    console.log('您邀请的用户正忙，请稍后再邀请！');
                     currentConversation = null;
                     hangupEl.hidden = true;
                     userDiv.hidden = false;
                     inviteBusyEl.hidden = false;
                     break;
                 case 'TIMEOUT':
+                    console.log('您邀请的用户未处理请求，请重新邀请！');
                     currentConversation = null;
                     hangupEl.hidden = true;
                     userDiv.hidden = false;
-                    inviteTimeoutEl.hidden = false;
                     break;
-
             }
         });
         currentConversation = conversation;
