@@ -145,15 +145,18 @@
     var login = function() {
         //初始化野狗
         var config = {
-            authDomain: videoAppidEl.value + '.wilddog.com',
+            authDomain: videoAppidEl.value + '.wilddog.com'
+        };
+        var videoApp = wilddog.initializeApp(config,'videoApp');
+        var syncConfig = {
             syncURL: "https://" + syncAppidEl.value + ".wilddogio.com"
         };
-        wilddog.initializeApp(config);
+        var syncApp = wilddog.initializeApp(syncConfig,'syncApp');
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
-        usersref = wilddog.sync().ref();
+        usersref = syncApp.sync().ref();
 
         //野狗匿名登录 推荐使用非匿名登录方式
-        wilddog.auth().signInAnonymously()
+        videoApp.auth().signInAnonymously()
             .then(function(user) {
                 //初始化WilddogVideoCall SDK
                 wilddogVideo.initialize({'appId':videoAppidEl.value,'token':user.getToken()});
