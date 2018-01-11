@@ -27,7 +27,7 @@
     </div>
     <div id="timeout_busy" hidden="" style="z-index: 999; position:absolute;border: 1px solid;border-radius: 5px; width:320px;height:160px;left:50%;margin-left:-160px;background-color: white;margin-top: 200px;">
         <div id="timeoutInfo" style="width:300px;height:60px;color:black;padding-top:40px;">
-            请稍候再拨！
+            您邀请的用户未接受邀请，请稍候再拨！
         </div>
         <button style="height:30px;border: 1px solid;border-radius:3px;width:100px;cursor:pointer;" onclick="javascript:document.getElementById('timeout_busy').hidden = true">
             确定
@@ -57,7 +57,7 @@
         </div>
     </div>
     <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.5.5/wilddog.js'></script>
-    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.4.5/wilddog-video-call.js'></script>
+    <script type="text/javascript" src='https://cdn.wilddog.com/sdk/js/2.4.6/wilddog-video-call.js'></script>
     <script type="text/javascript">
     var localEl = document.getElementById('local');
     var remoteEl = document.getElementById('remote');
@@ -76,24 +76,35 @@
     var inviteBusyEl = document.getElementById('invite_busy');
     var inviteTimeoutEl = document.getElementById('timeout_busy');
 
-    var currentConversation = null;
-    var incomingConversation = null;
+    var currentConversation = null; //保存建立通话成功后的当前Conversation对象
+    var incomingConversation = null;//保存被叫方监听到邀请未接受时获取到的Conversation对象
+    var outgoingConversation = null;//保存主叫方发起邀请未被接受时获取到的Conversation对象
     var usersref = null;
-    var auth = null;
+    var currentUser = null;
     var remoteStream = null;
     var localStream = null;
-    var status = 'new'; //判断当前会话状态
+    var status = 'new';//表示当前Conversation状态  new, outgoingInvite, incomingInvite, accepted, closed
 
     var onInviteCb = function(conversation) {
+        //被叫方监听到邀请 还未接受邀请时 获取到Converstaion对象
         incomingConversation = conversation;
         inviteEl.hidden = false;
         invitInfo.textContent = conversation.remoteUid + '向你发出会话邀请';
-        //监听被邀请者的事件
-        // 长时间没有接受主叫方邀请 触发on('error')事件，此时会话没有建立成功,status = 'new';
-        conversation.on('error',function (error) {
-            if(status == 'new'){
-                console.log('存在未处理的请求，主叫方id为：' + conversation.remoteUid);
+        status = 'incomingInvite';
+        //监听被叫方的事件
+        // 长时间没有接受主叫方邀请 触发on('error')事件，此时会话没有建立成功,status = 'incomingInvite';
+        incomingConversation.on('error', function (error) {
+            if(status == 'incomingInvite'){
+                //或视频通话成功后由于网络或其他原因发生的错误
+                console.log('被叫方监听到邀请事件，未接受。存在未处理的请求，主叫方id为：' + incomingConversation.remoteUid);
                 console.log(error);
+                inviteEl.hidden = true;
+            }
+        });
+        //主叫方主动取消通话，调用conversation.close()事件，被叫方监听到‘closed’事件
+        incomingConversation.on('closed',function () {
+            if(status == 'incomingInvite'){
+                console.log('主叫方主动取消通话邀请');
                 inviteEl.hidden = true;
             }
         })
@@ -107,7 +118,7 @@
             currentConversation = null;
             hangupEl.hidden = true;
             userDiv.hidden = false;
-            usersref.child('users/' + auth.uid).set(true);
+            usersref.child('users/' + currentUser.uid).set(true);
         }
     };
 
@@ -118,7 +129,7 @@
         videoList.hidden = false;
         userDiv.hidden = false;
         loginBtn.disabled = true;
-        auth = user;
+        currentUser = user;
         usersref.child('users/' + user.uid).set(true);
         usersref.child('users/' + user.uid).onDisconnect().remove();//监听在线用户列表，并展示除自己之外的用户
         usersref.child('users').on('child_added', function(snap) {
@@ -145,18 +156,16 @@
     var login = function() {
         //初始化野狗
         var config = {
-            authDomain: videoAppidEl.value + '.wilddog.com'
-        };
-        var videoApp = wilddog.initializeApp(config,'videoApp');
-        var syncConfig = {
+            authDomain: videoAppidEl.value + '.wilddog.com',
             syncURL: "https://" + syncAppidEl.value + ".wilddogio.com"
         };
-        var syncApp = wilddog.initializeApp(syncConfig,'syncApp');
+        wilddog.initializeApp(config);
+        //WilddogVideoCall SDK 使用 syncAppId用以保存用户列表，方便获取邀请时对方uid。
         //定义quickstart使用的用户列表存储路径，userList 可以改为其他自定义路径
-        usersref = syncApp.sync().ref();
+        usersref = wilddog.sync().ref();
 
         //野狗匿名登录 推荐使用非匿名登录方式
-        videoApp.auth().signInAnonymously()
+        wilddog.auth().signInAnonymously()
             .then(function(user) {
                 //初始化WilddogVideoCall SDK
                 wilddogVideo.initialize({'appId':videoAppidEl.value,'token':user.getToken()});
@@ -171,6 +180,7 @@
                     })
                     .then(function(wdStream) {
                         localStream = wdStream;
+                        //将获取到的媒体流放到video标签上
                         localStream.attach(localEl);
                     })
                     .catch(function(err) {
@@ -203,31 +213,31 @@
     };
 
     var conversationStarted = function(conversation) {
-        //开始建立conversation后 status = 'accept'
-        status = 'accept';
+        status = 'accepted';
+        currentConversation = conversation;
         //监听新参与者加入conversation事件
-        conversation.on('stream_received', function(stream) {
+        currentConversation.on('stream_received', function(stream) {
             inviteEl.hidden = true;
             hangupEl.hidden = false;
             userDiv.hidden = true;
-            usersref.child('users/' + auth.uid).remove();
+            usersref.child('users/' + currentUser.uid).remove();
             remoteStream = stream;
             remoteStream.attach(remoteEl);
         });
         //监听参与者离开conversation事件
-        conversation.on('closed', onParticipantDisconnectedCb);
+        currentConversation.on('closed', onParticipantDisconnectedCb);
 
-        conversation.on('local_stats', function(statistics) {
+        currentConversation.on('local_stats', function(statistics) {
             console.log('local_stats', statistics);
         });
-        conversation.on('remote_stats', function(statistics) {
+        currentConversation.on('remote_stats', function(statistics) {
             console.log('remote_stats', statistics);
         });
-        conversation.on('error', function (error) {
+        currentConversation.on('error', function (error) {
             inviteEl.hidden = true;
             switch (error.code){
                 case 41004:
-                    console.log('建立视频通话过程中，由于peerConnection建立失败导致的错误');
+                    console.log('建立完视频通话后，由于peerConnection建立失败导致的错误');
                     console.log(error);
                     break;
                 case 41007:
@@ -239,54 +249,49 @@
                     break;
             }
         });
-        conversation.on('response',function (callstatus) {
-            switch (callstatus){
+    };
+
+    //邀请其他用户加入会话
+    var invite = function(uid) {
+        //主叫方发起邀请  获取的Conversation对象
+        status = 'outgoingInvite';
+        outgoingConversation = videoInstance.call(uid,localStream,'test');
+        //监听主叫方事件
+        outgoingConversation.on('response',function (callStatus) {
+            switch (callStatus){
                 case 'ACCEPTED':
-                    console.log('您邀请的用户已接受邀请！');
+                    console.log('您邀请的用户已经接受邀请！');
+                    //处理建立一对一视频通话后的事件
+                    conversationStarted(outgoingConversation);
                     hangupEl.hidden = true;
                     userDiv.hidden = false;
                     break;
                 case 'REJECTED':
                     console.log('您邀请的用户已拒绝邀请，请重新邀请！');
-                    currentConversation = null;
-                    hangupEl.hidden = true;
-                    userDiv.hidden = false;
                     break;
                 case 'BUSY':
                     console.log('您邀请的用户正忙，请稍后再邀请！');
-                    currentConversation = null;
-                    hangupEl.hidden = true;
-                    userDiv.hidden = false;
                     inviteBusyEl.hidden = false;
                     break;
                 case 'TIMEOUT':
                     console.log('您邀请的用户未处理请求，请重新邀请！');
-                    currentConversation = null;
-                    hangupEl.hidden = true;
-                    userDiv.hidden = false;
+                    inviteTimeoutEl.hidden = false;
                     break;
             }
-        });
-        currentConversation = conversation;
-    };
-
-    //邀请其他用户加入会话
-    var invite = function(uid) {
-        currentConversation = videoInstance.call(uid,localStream,'test');
-        conversationStarted(currentConversation);
-        //监听被邀请者的事件
+        })
     };
 
     //离开当前conversation
     var disconnect = function() {
         if (currentConversation) {
+            status = 'closed';
             remoteStream.detach(remoteEl);
             //Conversation提供了close函数用于主动离开conversation
             currentConversation.close();
             hangup.hidden = true;
             currentConversation = null;
             userDiv.hidden = false;
-            usersref.child('users/' + auth.uid).set(true);
+            usersref.child('users/' + currentUser.uid).set(true);
         }
     }
     </script>
